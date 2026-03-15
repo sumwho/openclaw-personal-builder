@@ -1,0 +1,28 @@
+# Build outputs
+/.build/
+/.cache/
+.build/
+.cache/
+**/.build/
+**/.cache/
+
+# Local environment and secrets
+/.env
+/.env.local
+/.env.*.local
+
+# OpenClaw local runtime state
+/.openclaw-dev/
+
+# Local inputs that should never be committed
+/assets/game-data/
+/src/openclaw-upstream/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# OS/editor noise
+.DS_Store
