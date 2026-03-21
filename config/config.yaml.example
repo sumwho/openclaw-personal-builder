@@ -1,0 +1,42 @@
+base_dir: __BASE_DIR__
+models_dir: models
+output_dir: runtime/audio
+temp_dir: runtime/temp
+cache_dir: runtime/cache
+log_dir: runtime/logs
+default_engine: kokoro
+max_input_length: 5000
+chunk_soft_limit: 280
+default_voice: default_zh
+ffmpeg_path: __BASE_DIR__/bin/ffmpeg
+concurrency_limit: 1
+gateway_host: 127.0.0.1
+gateway_port: 28641
+normalize_audio: false
+
+kokoro:
+    python_bin: __BASE_DIR__/runtime/venv/tts-gateway/bin/python
+    model_ref: mlx-community/Kokoro-82M-bf16
+    sample_rate: 24000
+
+piper:
+    executable: __BASE_DIR__/bin/piper
+    sample_rate: 22050
+
+voice_map:
+    default_zh:
+        lang: zh
+        kokoro:
+            voice: zf_xiaobei
+            lang_code: z
+        piper:
+            model: __BASE_DIR__/models/piper/zh_CN-huayan-medium.onnx
+            config: __BASE_DIR__/models/piper/zh_CN-huayan-medium.onnx.json
+    default_en:
+        lang: en
+        kokoro:
+            voice: af_heart
+            lang_code: a
+        piper:
+            model: __BASE_DIR__/models/piper/en_US-lessac-medium.onnx
+            config: __BASE_DIR__/models/piper/en_US-lessac-medium.onnx.json

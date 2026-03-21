@@ -1,0 +1,10 @@
+fastapi==0.116.1
+uvicorn==0.35.0
+pydantic==2.11.7
+PyYAML==6.0.2
+soundfile==0.13.1
+numpy==2.3.2
+httpx==0.28.1
+mlx-audio==0.3.1
+piper-tts==1.4.1
+misaki[en,zh]==0.9.4

@@ -1,6 +1,6 @@
 # OpenClaw Local Test Environment
 
-This repository provides a safe local test environment scaffold for working with an upstream OpenClaw source tree and your legally obtained game assets.
+This repository provides a safe local test environment scaffold for working with an upstream OpenClaw source tree and your legally obtained game assets. It also includes a local-first TTS package and OpenClaw skill integration for localhost speech generation.
 
 ## Layout
 
@@ -8,7 +8,7 @@ This repository provides a safe local test environment scaffold for working with
 - `src/tools/` — helper scripts used inside the container
 - `assets/game-data/` — ignored directory for local game assets
 - `docs/` — setup and usage documentation
-- `tests/` — reserved for environment or integration checks
+- `tests/` — environment, unit, and integration checks
 
 ## Commands
 
@@ -22,6 +22,10 @@ This repository provides a safe local test environment scaffold for working with
 - `make gui-stop` — stop the local Gateway started from this repo
 - `make gui-dashboard` — open the local Control UI
 - `make gui-tui` — open the terminal UI against the local Gateway
+- `make tts-setup` — deploy the local TTS package under the configured base dir, defaulting to `/Volumes/ExtendStorage/openclaw`
+- `make tts-start` — start the local TTS gateway on `127.0.0.1`
+- `make tts-stop` — stop the local TTS gateway
+- `make tts-clean` — clear generated audio, temp files, cache, and logs while keeping models intact
 
 ## Quick Start
 
@@ -34,3 +38,5 @@ This repository provides a safe local test environment scaffold for working with
 See `docs/setup.md` for the build workflow and safety notes.
 For local macOS operation, Qwen integration, and troubleshooting, see `docs/runbook.md`.
 For a structured OpenClaw learning path, see `docs/learning/README.md`.
+For the local speech stack and OpenClaw skill integration, see `docs/local-tts.md`.
+For custom TTS deployments, pass `OPENCLAW_TTS_BASE_DIR=/your/base/dir` to `make tts-setup`, `make tts-start`, `make tts-stop`, and `make tts-clean`.

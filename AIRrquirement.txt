@@ -1,0 +1,293 @@
+You are a senior AI infrastructure engineer, macOS platform engineer, and local-first agent systems architect.
+
+Your task is to design and implement a production-grade LOCAL Text-to-Speech (TTS) system for Apple Silicon, optimized for a Mac mini M4 with 32GB unified memory, and integrate it with OpenClaw as an external local speech backend.
+
+This is NOT a toy demo.
+This must be a maintainable, modular, self-contained local system that I can run, inspect, and fully remove later.
+
+==================================================
+1. PRIMARY OBJECTIVE
+==================================================
+
+Build a 3-layer architecture:
+
+1) TTS Engine Layer
+2) TTS Gateway Layer
+3) OpenClaw Integration Layer
+
+The system must:
+- Run fully locally on macOS Apple Silicon
+- Support Chinese and English
+- Use Kokoro MLX as the primary engine
+- Use Piper as the fallback engine
+- Expose a local HTTP API for speech generation
+- Be easy to integrate into OpenClaw via a skill
+- Store ALL files under a single removable base directory
+- Be production-oriented, not experimental
+
+==================================================
+2. CRITICAL STORAGE REQUIREMENT
+==================================================
+
+ALL downloaded files, deployed files, runtime files, models, logs, caches, temp files, outputs, scripts, and virtual environments MUST be stored under:
+
+/Volumes/ExtendStorage/openclaw
+
+Do NOT write to:
+- ~/Library
+- ~/.cache
+- ~/.config
+- /tmp (unless explicitly redirected inside the base directory)
+- any other implicit system path
+
+The system must be self-contained and easy to clean up later.
+
+==================================================
+3. DIRECTORY STRUCTURE (STRICT)
+==================================================
+
+Use this structure:
+
+/Volumes/ExtendStorage/openclaw/
+├── models/
+│   ├── kokoro/
+│   ├── piper/
+│   └── xtts/                  # reserved for future use
+├── runtime/
+│   ├── audio/
+│   ├── temp/
+│   ├── cache/
+│   ├── logs/
+│   └── venv/
+├── config/
+│   └── config.yaml
+├── services/
+│   └── tts-gateway/
+├── skills/
+│   └── local-tts/
+├── bin/
+├── scripts/
+│   ├── setup.sh
+│   ├── start.sh
+│   ├── stop.sh
+│   └── clean.sh
+
+All code, configs, model paths, cache paths, and outputs must reference this base directory.
+
+==================================================
+4. TTS ENGINE LAYER
+==================================================
+
+Implement a unified abstraction over two engines:
+
+Primary:
+- Kokoro TTS via MLX on Apple Silicon
+
+Fallback:
+- Piper
+
+Requirements:
+- Expose one common interface, for example:
+  generate(text, voice, lang, speed, output_format) -> output_file_path
+- Support runtime engine selection
+- Default to Kokoro
+- Fall back to Piper automatically if Kokoro fails
+- Make engine-specific logic isolated in separate modules
+
+==================================================
+5. TTS GATEWAY LAYER
+==================================================
+
+Implement a FastAPI-based local service.
+
+Bind only to:
+127.0.0.1
+
+Provide at minimum:
+
+POST /v1/audio/speech
+GET  /health
+GET  /voices
+
+Example request body:
+{
+  "text": "Today’s summary...",
+  "voice": "default_zh",
+  "lang": "zh",
+  "format": "mp3",
+  "speed": 1.0,
+  "engine": "kokoro"
+}
+
+Requirements:
+- Validate input length
+- Reject unsafe or oversized input
+- Support long text by splitting into chunks
+- Merge generated chunks into one final audio file
+- Use ffmpeg for merging and optional normalization
+- Clean temp files after completion
+- Write logs to runtime/logs
+- Store generated audio in runtime/audio
+- Store temp artifacts in runtime/temp
+- Store runtime cache in runtime/cache
+
+==================================================
+6. TEXT PREPROCESSING
+==================================================
+
+Implement a preprocessing pipeline for TTS input:
+
+- Sentence splitting by punctuation
+- Safe chunking for long text
+- Basic normalization for:
+  - numbers
+  - dates
+  - mixed English text
+  - excessive whitespace
+- Ensure Chinese and English text are handled reasonably
+
+Do not overcomplicate normalization.
+Prioritize robustness and maintainability.
+
+==================================================
+7. CONFIGURATION
+==================================================
+
+Create a config.yaml under:
+
+/Volumes/ExtendStorage/openclaw/config/config.yaml
+
+The config should include:
+- base_dir
+- models_dir
+- output_dir
+- temp_dir
+- cache_dir
+- log_dir
+- default_engine
+- max_input_length
+- default_voice
+- voice_map
+- ffmpeg_path
+- concurrency_limit
+
+All paths must be configurable through this file.
+
+==================================================
+8. OPENCLAW INTEGRATION LAYER
+==================================================
+
+Implement an OpenClaw skill named:
+
+local-tts
+
+The skill should:
+- Call the local FastAPI endpoint at 127.0.0.1
+- Send text/voice/lang/format parameters
+- Save or return the generated audio path
+- Be minimal, practical, and easy to install
+- Follow OpenClaw skill conventions
+
+Also provide:
+- SKILL.md
+- any helper script needed for invocation
+- example usage for:
+  - “Read today’s summary”
+  - “Convert this paragraph to speech”
+
+The design should assume this is Phase 1.
+Keep it as a skill first, not a plugin-first implementation.
+
+==================================================
+9. SECURITY REQUIREMENTS
+==================================================
+
+The implementation must:
+- Bind only to localhost
+- Prevent path traversal
+- Prevent arbitrary file writes
+- Avoid shell injection
+- Avoid untrusted subprocess argument construction
+- Validate and sanitize user input
+- Use explicit output directories only
+
+==================================================
+10. OPERATIONS REQUIREMENTS
+==================================================
+
+Provide:
+- setup.sh
+- start.sh
+- stop.sh
+- clean.sh
+
+clean.sh must:
+- remove runtime/audio/*
+- remove runtime/temp/*
+- remove runtime/cache/*
+- remove runtime/logs/*
+- keep models intact
+- keep source code intact
+
+Also include operational notes for:
+- how to install dependencies on macOS Apple Silicon
+- how to point Hugging Face cache into the base directory
+- how to keep ffmpeg under the base directory if desired
+- how to avoid polluting the system environment
+
+==================================================
+11. PERFORMANCE GOALS
+==================================================
+
+Target environment:
+- Mac mini M4
+- 32GB RAM
+- Apple Silicon
+- local-only use
+
+Optimize for:
+- stability
+- low operational complexity
+- reasonable latency
+- safe long text generation
+
+Do not optimize prematurely for:
+- realtime streaming
+- voice cloning
+- distributed deployment
+
+But structure the code so that future support for XTTS v2 or streaming can be added later.
+
+==================================================
+12. OUTPUT REQUIREMENTS
+==================================================
+
+Provide all of the following:
+
+1) Full project structure
+2) Full implementation plan
+3) Python code for the FastAPI server
+4) Engine wrapper modules
+5) Config file example
+6) OpenClaw skill files
+7) Shell scripts
+8) Example curl tests
+9) Example run instructions for macOS
+10) Notes on future extension points
+
+==================================================
+13. IMPLEMENTATION STYLE
+==================================================
+
+Follow these rules:
+- Be pragmatic
+- Prefer simple and explicit code
+- Avoid unnecessary abstractions
+- Keep modules decoupled
+- Use clear folder boundaries
+- Comment important decisions
+- Make the code easy to inspect and delete later
+
+If some library APIs are uncertain, state the assumption clearly and structure the code so the uncertain part is easy to replace.
+
+Return the result as a practical implementation package, not as a vague design essay.
