@@ -118,6 +118,7 @@ Workspace 不是普通资料目录，它会被注入到系统提示词中。
 - 固定本地 workspace
 - 固定 gateway 模式
 - 生成或保留 gateway token
+- 把仓库里的 `skills/local-tts/` 同步到 `.openclaw-dev/workspace/skills/local-tts/`
 
 ## 8. 学习架构时该怎么排问题
 

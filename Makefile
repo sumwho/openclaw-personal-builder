@@ -26,7 +26,7 @@ DOCKER_RUN = docker run --rm -it \
 	-w /workspace \
 	$(IMAGE_NAME)
 
-.PHONY: help prepare build-image build test run shell clean local-prepare gui-doctor gui-gateway gui-stop gui-dashboard gui-tui
+.PHONY: help prepare build-image build test run shell clean local-prepare gui-doctor gui-gateway gui-stop gui-dashboard gui-tui tts-setup tts-start tts-stop tts-clean
 
 help:
 	@echo "make build-image  Build the Docker image"
@@ -40,6 +40,10 @@ help:
 	@echo "make gui-stop     Stop the local OpenClaw gateway on the configured port"
 	@echo "make gui-dashboard Print or open the dashboard URL"
 	@echo "make gui-tui      Open the terminal UI"
+	@echo "make tts-setup    Deploy the local TTS package under OPENCLAW_TTS_BASE_DIR (default: /Volumes/ExtendStorage/openclaw)"
+	@echo "make tts-start    Start the local TTS gateway"
+	@echo "make tts-stop     Stop the local TTS gateway"
+	@echo "make tts-clean    Remove runtime TTS artifacts while keeping models"
 	@echo "make clean        Remove local build and cache directories"
 
 prepare:
@@ -72,26 +76,25 @@ gui-gateway: local-prepare
 	@$(GUI_ENV_RUN) bash src/tools/openclaw_local.sh gateway
 
 gui-stop:
-	@PORT="$${OPENCLAW_GATEWAY_PORT:-18789}"; \
-	PIDS="$$(lsof -tiTCP:$$PORT -sTCP:LISTEN 2>/dev/null || true)"; \
-	if [ -z "$$PIDS" ]; then \
-		echo "No local OpenClaw gateway is listening on port $$PORT."; \
-		exit 0; \
-	fi; \
-	echo "Stopping local OpenClaw gateway on port $$PORT (pid: $$PIDS)"; \
-	kill -TERM $$PIDS; \
-	sleep 1; \
-	REMAINING="$$(lsof -tiTCP:$$PORT -sTCP:LISTEN 2>/dev/null || true)"; \
-	if [ -n "$$REMAINING" ]; then \
-		echo "Gateway still running after SIGTERM, forcing stop (pid: $$REMAINING)"; \
-		kill -KILL $$REMAINING; \
-	fi
+	@$(GUI_ENV_RUN) bash src/tools/openclaw_local.sh stop
 
 gui-dashboard: local-prepare
 	@$(GUI_ENV_RUN) bash src/tools/openclaw_local.sh dashboard
 
 gui-tui: local-prepare
 	@$(GUI_ENV_RUN) bash src/tools/openclaw_local.sh tui
+
+tts-setup:
+	@bash scripts/setup.sh
+
+tts-start:
+	@bash scripts/start.sh
+
+tts-stop:
+	@bash scripts/stop.sh
+
+tts-clean:
+	@bash scripts/clean.sh
 
 clean:
 	rm -rf $(OPENCLAW_BUILD_DIR) $(OPENCLAW_CACHE_DIR)

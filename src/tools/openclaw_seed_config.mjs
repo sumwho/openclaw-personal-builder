@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const [configPathArg, stateRootArg] = process.argv.slice(2);
 
@@ -12,9 +13,22 @@ if (!configPathArg || !stateRootArg) {
 const configPath = path.resolve(configPathArg);
 const stateRoot = path.resolve(stateRootArg);
 const workspaceDir = path.join(stateRoot, "workspace");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const repoSkillDir = path.join(repoRoot, "skills", "local-tts");
+const workspaceSkillsDir = path.join(workspaceDir, "skills");
+const workspaceSkillDir = path.join(workspaceSkillsDir, "local-tts");
 
 await fs.mkdir(path.dirname(configPath), { recursive: true });
 await fs.mkdir(workspaceDir, { recursive: true });
+await fs.mkdir(workspaceSkillsDir, { recursive: true });
+
+try {
+    await fs.rm(workspaceSkillDir, { recursive: true, force: true });
+    await fs.cp(repoSkillDir, workspaceSkillDir, { recursive: true });
+} catch (error) {
+    console.error(`Failed to sync workspace skill from ${repoSkillDir}: ${String(error)}`);
+    process.exit(1);
+}
 
 let config = {};
 

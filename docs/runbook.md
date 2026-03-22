@@ -118,6 +118,11 @@ make gui-gateway
 make gui-stop
 ```
 
+说明：
+
+- `make gui-stop` 会优先停止 `launchd` 监管的 `ai.openclaw.gateway`
+- 若端口上仍有残留监听，才会回退到进程级清理
+
 3. 打开 Dashboard：
 
 ```sh
@@ -168,6 +173,7 @@ make gui-dashboard
 - 默认状态目录为 `.openclaw-dev/state-live/`
 - 旧状态目录如果曾产生异常历史，不要继续复用，优先保留 `state-live`
 - `make gui-gateway` 是前台常驻进程；若需要在另一个终端停止它，优先用 `make gui-stop`
+- 如果看到 “another gateway instance is already listening”，先执行 `make gui-stop`；这会同时处理普通进程和 `launchd` 监管实例
 
 ---
 

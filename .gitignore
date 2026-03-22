@@ -23,6 +23,8 @@
 *.tmp
 *.swp
 *.swo
+*.pyc
+__pycache__/
 
 # OS/editor noise
 .DS_Store

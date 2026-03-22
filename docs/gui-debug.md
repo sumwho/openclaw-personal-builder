@@ -86,6 +86,8 @@ make gui-tui
 make gui-stop
 ```
 
+当前实现会优先调用 `openclaw gateway stop` 停止被 `launchd` 监管的 Gateway 服务；如果端口上还有残留监听，再回退到 `launchctl bootout` 和进程级清理。
+
 ## 调试建议
 
 - 若只验证服务可用性，优先用 `gui-doctor` 和 `gui-dashboard`
@@ -102,6 +104,10 @@ make gui-stop
 ### `gateway bind=loopback resolved to non-loopback host 0.0.0.0`
 
 该问题通常只出现在受限诊断环境中。当前项目按宿主机本地模式运行时，应直接绑定 `127.0.0.1`。
+
+### `make gui-stop` 之后 Gateway 立刻又起来
+
+根因通常不是 `kill` 失败，而是进程由 `launchd` 监管。旧版 `gui-stop` 只会杀掉当前监听 pid，但 `launchd` 会马上拉起新的 `openclaw-gateway`。当前仓库版本的 `gui-stop` 已改为优先执行 `openclaw gateway stop`，必要时再 `launchctl bootout gui/$UID/ai.openclaw.gateway`。
 
 ### `NO_REPLY` 出现在直聊场景
 
