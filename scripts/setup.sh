@@ -8,6 +8,8 @@ SERVICE_SRC="${REPO_ROOT}/services/tts-gateway"
 SKILL_SRC="${REPO_ROOT}/skills/local-tts"
 CONFIG_TEMPLATE="${REPO_ROOT}/config/config.yaml.example"
 FORCE_RENDER_CONFIG="${OPENCLAW_TTS_FORCE_CONFIG_RENDER:-0}"
+MELO_GIT_REF="${OPENCLAW_TTS_MELO_GIT_REF:-209145371cff8fc3bd60d7be902ea69cbdb7965a}"
+MELO_TARBALL_URL="https://codeload.github.com/myshell-ai/MeloTTS/tar.gz/${MELO_GIT_REF}"
 
 pick_python_bin() {
     if [[ -n "${PYTHON_BIN:-}" ]]; then
@@ -80,6 +82,14 @@ if configured_base_dir and configured_base_dir != expected_base_dir:
 PY
 }
 
+install_melo_tts() {
+    local python_bin="$1"
+    local requirements_path="${BASE_DIR}/services/tts-gateway/requirements-melo.txt"
+
+    "${python_bin}" -m pip install -r "${requirements_path}"
+    "${python_bin}" -m pip install --no-build-isolation --no-deps "${MELO_TARBALL_URL}"
+}
+
 mkdir -p \
     "${BASE_DIR}/models/kokoro" \
     "${BASE_DIR}/models/piper" \
@@ -114,22 +124,35 @@ else
 fi
 
 VENV_DIR="${BASE_DIR}/runtime/venv/tts-gateway"
+MELO_VENV_DIR="${BASE_DIR}/runtime/venv/melo"
 PYTHON_BIN="$(pick_python_bin)"
 verify_python_version "${PYTHON_BIN}"
 
 rm -rf "${VENV_DIR}"
+rm -rf "${MELO_VENV_DIR}"
 "${PYTHON_BIN}" -m venv "${VENV_DIR}"
 source "${VENV_DIR}/bin/activate"
 
 export HF_HOME="${BASE_DIR}/runtime/cache/huggingface"
 export XDG_CACHE_HOME="${BASE_DIR}/runtime/cache/xdg"
 export PIP_CACHE_DIR="${BASE_DIR}/runtime/cache/pip"
+export NLTK_DATA="${BASE_DIR}/runtime/cache/nltk_data"
+export HOME="${BASE_DIR}/runtime/cache/home"
 export TMPDIR="${BASE_DIR}/runtime/temp"
-mkdir -p "${HF_HOME}" "${XDG_CACHE_HOME}" "${PIP_CACHE_DIR}" "${TMPDIR}"
+mkdir -p "${HF_HOME}" "${XDG_CACHE_HOME}" "${PIP_CACHE_DIR}" "${NLTK_DATA}" "${HOME}" "${TMPDIR}"
 
 python -m pip install --upgrade pip
 python -m pip install -r "${BASE_DIR}/services/tts-gateway/requirements.txt"
 python -m pip install -e "${BASE_DIR}/services/tts-gateway"
+deactivate
+
+"${PYTHON_BIN}" -m venv "${MELO_VENV_DIR}"
+source "${MELO_VENV_DIR}/bin/activate"
+python -m pip install --upgrade pip
+install_melo_tts python
+python -m pip install -e "${BASE_DIR}/services/tts-gateway"
+python -m local_tts_gateway.engines.patch_melo_install
+deactivate
 
 cat <<EOF
 Local TTS package deployed under:
@@ -143,4 +166,5 @@ Next steps:
 Notes:
   - Override the deployment root with OPENCLAW_TTS_BASE_DIR=/your/path
   - Regenerate config.yaml for a new base dir with OPENCLAW_TTS_FORCE_CONFIG_RENDER=1
+  - MeloTTS uses a dedicated runtime venv at ${MELO_VENV_DIR} to avoid conflicting with Kokoro dependencies
 EOF

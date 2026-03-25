@@ -8,10 +8,10 @@ import uuid
 from pathlib import Path
 
 from local_tts_gateway.audio import AudioProcessingError, concat_audio_files
-from local_tts_gateway.config import AppConfig
+from local_tts_gateway.config import AppConfig, VoiceConfig
 from local_tts_gateway.engines.base import EngineError
 from local_tts_gateway.engines.factory import EngineRegistry
-from local_tts_gateway.preprocess import preprocess_text
+from local_tts_gateway.preprocess import preprocess_text, split_mixed_script_text
 from local_tts_gateway.security import SecurityError, ensure_within_base, sanitize_text
 
 
@@ -55,8 +55,9 @@ class TTSService:
             raise SecurityError(f"voice '{selected_voice_name}' only supports lang='{selected_voice.lang}'")
 
         preferred_engine = engine or self.config.default_engine
-        chunk_texts = preprocess_text(cleaned_text, selected_voice.lang, self.config.chunk_soft_limit)
-        if not chunk_texts:
+        synthesis_plan = self._build_synthesis_plan(cleaned_text, selected_voice, preferred_engine)
+        flat_chunks = [chunk for _, chunk in synthesis_plan]
+        if not flat_chunks:
             raise SecurityError("text preprocessing produced no synthesizeable chunks")
 
         request_id = uuid.uuid4().hex
@@ -65,9 +66,7 @@ class TTSService:
 
         output_name = f"{request_id}.{fmt}"
         output_path = ensure_within_base(self.config.output_dir / output_name, self.config.base_dir)
-        engine_order = [preferred_engine]
-        if preferred_engine == "kokoro":
-            engine_order.append("piper")
+        engine_order = self._build_engine_order(preferred_engine)
 
         chunk_paths: list[Path] = []
         engine_used: str | None = None
@@ -78,11 +77,11 @@ class TTSService:
                 chunk_paths.clear()
                 self._cleanup_temp_files(temp_root)
                 try:
-                    for index, chunk_text in enumerate(chunk_texts):
+                    for index, (voice_for_chunk, chunk_text) in enumerate(synthesis_plan):
                         chunk_path = temp_root / f"{engine_name}-chunk-{index:03d}.wav"
                         generated_path = self.registry.synthesize_chunk(
                             engine_name=engine_name,
-                            voice=selected_voice,
+                            voice=voice_for_chunk,
                             text=chunk_text,
                             speed=speed,
                             output_path=chunk_path,
@@ -112,9 +111,47 @@ class TTSService:
         return {
             "audio_path": str(output_path),
             "engine_used": engine_used,
-            "chunks": len(chunk_texts),
+            "chunks": len(flat_chunks),
             "duration_hint": self._duration_hint(cleaned_text),
         }
+
+    @staticmethod
+    def _build_engine_order(preferred_engine: str) -> list[str]:
+        fallback_map = {
+            "melo": ["melo", "kokoro", "piper"],
+            "kokoro": ["kokoro", "melo", "piper"],
+            "piper": ["piper", "melo", "kokoro"],
+        }
+        return fallback_map.get(preferred_engine, [preferred_engine, "melo", "kokoro", "piper"])
+
+    def _build_synthesis_plan(self, text: str, selected_voice: VoiceConfig, preferred_engine: str) -> list[tuple[VoiceConfig, str]]:
+        if self._should_use_single_pass_code_switch(selected_voice, preferred_engine):
+            return [
+                (selected_voice, chunk_text)
+                for chunk_text in preprocess_text(text, selected_voice.lang, self.config.chunk_soft_limit)
+            ]
+
+        segments = split_mixed_script_text(text, selected_voice.lang)
+        plan: list[tuple[VoiceConfig, str]] = []
+        for segment in segments:
+            voice = self._resolve_voice_for_lang(segment.lang, selected_voice)
+            for chunk_text in preprocess_text(segment.text, voice.lang, self.config.chunk_soft_limit):
+                plan.append((voice, chunk_text))
+        return plan
+
+    @staticmethod
+    def _should_use_single_pass_code_switch(selected_voice: VoiceConfig, preferred_engine: str) -> bool:
+        return preferred_engine == "melo" and selected_voice.name == "zh_mix_en"
+
+    def _resolve_voice_for_lang(self, lang: str, selected_voice: VoiceConfig) -> VoiceConfig:
+        if selected_voice.lang == lang:
+            return selected_voice
+
+        for voice in self.config.voices.values():
+            if voice.lang == lang:
+                return voice
+
+        return selected_voice
 
     def _cleanup_temp_dir(self, temp_root: Path) -> None:
         if not temp_root.exists():
@@ -142,14 +179,19 @@ class TTSService:
 
 
 def build_runtime_env(config: AppConfig) -> dict[str, str]:
-    return {
+    runtime_env = {
+        "HOME": str(config.cache_dir / "home"),
         "HF_HOME": str(config.cache_dir / "huggingface"),
         "XDG_CACHE_HOME": str(config.cache_dir / "xdg"),
         "PIP_CACHE_DIR": str(config.cache_dir / "pip"),
+        "NLTK_DATA": str(config.cache_dir / "nltk_data"),
         "TMPDIR": str(config.temp_dir),
         "TEMP": str(config.temp_dir),
         "TMP": str(config.temp_dir),
     }
+    if config.melo.mecabrc:
+        runtime_env["MECABRC"] = config.melo.mecabrc
+    return runtime_env
 
 
 def apply_runtime_env(config: AppConfig) -> None:

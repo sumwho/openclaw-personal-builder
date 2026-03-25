@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 AudioFormat = Literal["mp3", "wav"]
 LanguageCode = Literal["zh", "en"]
-EngineName = Literal["kokoro", "piper"]
+EngineName = Literal["melo", "kokoro", "piper"]
 
 
 class SpeechRequest(BaseModel):

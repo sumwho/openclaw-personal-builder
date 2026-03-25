@@ -3,7 +3,8 @@
 ## Goals
 
 - Local-only TTS on Apple Silicon macOS
-- Primary engine: Kokoro MLX
+- Preferred engine: MeloTTS
+- Secondary engine: Kokoro MLX
 - Fallback engine: Piper
 - Single removable deployment base directory, defaulting to `/Volumes/ExtendStorage/openclaw`
 - Localhost-only FastAPI gateway for OpenClaw integration
@@ -53,6 +54,7 @@ workspace skill used by OpenClaw:
 ## Assumptions
 
 - `mlx-audio` provides `python -m mlx_audio.tts.generate` for Kokoro MLX synthesis.
+- MeloTTS is installed from the official GitHub source tarball and used through the Python API.
 - Piper fallback is available either through the `piper-tts` Python package in the gateway venv or an explicit local binary path such as `<base_dir>/bin/piper`.
 - `ffmpeg` can be exposed inside the base directory as `<base_dir>/bin/ffmpeg`, even if the underlying binary is installed by Homebrew.
 
@@ -60,9 +62,11 @@ These assumptions are isolated to the engine adapters and config file so they ca
 
 ## Current Verified Behavior
 
-- Chinese requests can complete on Kokoro.
-- English requests can complete on Piper.
+- Chinese requests can complete on Melo or Kokoro, depending on the requested engine and installed runtime dependencies.
+- English requests can complete on Melo or Piper.
 - English requests that prefer Kokoro may fall back to Piper.
+- Mixed Chinese and English requests are split by script. Both English and Chinese chunks can now stay on Melo for common words and letter-spelled OOV tokens such as `OpenAI`.
+- The deployed config now exposes `zh_mix_en` as an explicit voice alias for the official Melo Chinese `(mix EN)` path, and that voice keeps mixed Chinese plus English text on the single-pass Melo route instead of pre-splitting by script.
 - `models/kokoro/` is created during setup, but Kokoro is still resolved through the configured MLX model reference and runtime cache behavior.
 - `openclaw skills list` can discover `local-tts` from `.openclaw-dev/workspace/skills/local-tts/`.
 - The workspace copy of `scripts/invoke_tts.py` can successfully generate audio through the local gateway.
@@ -83,8 +87,11 @@ Recommended dependency install notes for Apple Silicon:
 
 - Use Python `3.11`, `3.12`, or `3.13` for the TTS venv. `3.12` is the preferred baseline. If your default `python3` is `3.14`, run setup as `PYTHON_BIN=/opt/homebrew/bin/python3.12 bash scripts/setup.sh`.
 - Keep the virtual environment inside `<base_dir>/runtime/venv/tts-gateway`
+- Keep the Melo virtual environment inside `<base_dir>/runtime/venv/melo`
 - Keep Hugging Face cache inside `<base_dir>/runtime/cache/huggingface`
 - Keep `TMPDIR` inside `<base_dir>/runtime/temp`
+- Keep the effective `HOME` for the gateway inside `<base_dir>/runtime/cache/home` so runtime artifacts stay removable
+- Optional: pre-populate `<base_dir>/runtime/cache/nltk_data` with `cmudict` and `averaged_perceptron_tagger` if you want `g2p_en` quality for harder English OOV cases. The local letter-spelling fallback works without them.
 - Recommended: symlink or place `ffmpeg` at `<base_dir>/bin/ffmpeg` so the gateway config never points outside the base directory
 
 ## OpenClaw Skill Discovery
@@ -132,6 +139,21 @@ Voices:
 
 ```sh
 curl http://127.0.0.1:28641/voices
+```
+
+Preferred Melo path:
+
+```sh
+curl -X POST http://127.0.0.1:28641/v1/audio/speech \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "good afternoon， 今天下雨了， 天气有些阴。",
+    "voice": "default_zh",
+    "lang": "zh",
+    "format": "mp3",
+    "speed": 1.0,
+    "engine": "melo"
+  }'
 ```
 
 Verified Kokoro path:

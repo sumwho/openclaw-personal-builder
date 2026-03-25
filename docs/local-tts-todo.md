@@ -6,6 +6,10 @@ This document captures the remaining gaps between the current implementation and
 
 ## Priority 0
 
+- Harden MeloTTS installation on Apple Silicon.
+  Current state: the gateway now has a working Melo adapter, an isolated Melo venv, a runtime patch that removes the Japanese import blocker, and a local English fallback path for common words and letter-spelled OOV tokens.
+  Target state: finish a reproducible Melo install manifest, add a smoke test, and optionally package NLTK English data under the deployment base directory for better pronunciation on harder OOV cases.
+
 - Make Kokoro English fully local.
   Current state: English requests with `engine=kokoro` fall back to Piper because the Kokoro English path triggers a spaCy compatibility lookup against `raw.githubusercontent.com` at runtime.
   Target state: preinstall the exact English spaCy model artifacts under the chosen deployment base directory and prevent any runtime network fetch.

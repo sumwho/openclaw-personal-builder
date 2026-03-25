@@ -27,6 +27,7 @@ class VoiceEngineConfig:
 class VoiceConfig:
     name: str
     lang: str
+    melo: VoiceEngineConfig
     kokoro: VoiceEngineConfig
     piper: VoiceEngineConfig
 
@@ -38,6 +39,11 @@ class EngineConfig:
     python_bin: str | None
     model_ref: str | None
     sample_rate: int
+    device: str | None = None
+    use_hf: bool = True
+    model_path: str | None = None
+    config_path: str | None = None
+    mecabrc: str | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +65,7 @@ class AppConfig:
     gateway_port: int
     normalize_audio: bool
     voices: dict[str, VoiceConfig]
+    melo: EngineConfig
     kokoro: EngineConfig
     piper: EngineConfig
 
@@ -82,6 +89,7 @@ def _read_voice_config(name: str, raw: dict[str, Any]) -> VoiceConfig:
     return VoiceConfig(
         name=name,
         lang=str(raw["lang"]),
+        melo=VoiceEngineConfig(**(raw.get("melo") or {})),
         kokoro=VoiceEngineConfig(**(raw.get("kokoro") or {})),
         piper=VoiceEngineConfig(**(raw.get("piper") or {})),
     )
@@ -94,6 +102,11 @@ def _read_engine_config(name: str, raw: dict[str, Any]) -> EngineConfig:
         python_bin=raw.get("python_bin"),
         model_ref=raw.get("model_ref"),
         sample_rate=int(raw.get("sample_rate", 24000)),
+        device=raw.get("device"),
+        use_hf=bool(raw.get("use_hf", True)),
+        model_path=raw.get("model_path"),
+        config_path=raw.get("config_path"),
+        mecabrc=raw.get("mecabrc"),
     )
 
 
@@ -138,14 +151,15 @@ def load_config(config_path: str | Path | None = None) -> AppConfig:
         gateway_port=int(data.get("gateway_port", 28641)),
         normalize_audio=bool(data.get("normalize_audio", False)),
         voices=voices,
+        melo=_read_engine_config("melo", data.get("melo") or {}),
         kokoro=_read_engine_config("kokoro", data.get("kokoro") or {}),
         piper=_read_engine_config("piper", data.get("piper") or {}),
     )
 
     if config.default_voice not in config.voices:
         raise ConfigError(f"default_voice '{config.default_voice}' is not defined in voice_map")
-    if config.default_engine not in {"kokoro", "piper"}:
-        raise ConfigError("default_engine must be 'kokoro' or 'piper'")
+    if config.default_engine not in {"melo", "kokoro", "piper"}:
+        raise ConfigError("default_engine must be 'melo', 'kokoro', or 'piper'")
 
     ensure_directories(config)
     return config

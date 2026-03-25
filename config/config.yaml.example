@@ -4,7 +4,7 @@ output_dir: runtime/audio
 temp_dir: runtime/temp
 cache_dir: runtime/cache
 log_dir: runtime/logs
-default_engine: kokoro
+default_engine: melo
 max_input_length: 5000
 chunk_soft_limit: 280
 default_voice: default_zh
@@ -13,6 +13,11 @@ concurrency_limit: 1
 gateway_host: 127.0.0.1
 gateway_port: 28641
 normalize_audio: false
+
+melo:
+    python_bin: __BASE_DIR__/runtime/venv/melo/bin/python
+    sample_rate: 44100
+    mecabrc: /opt/homebrew/etc/mecabrc
 
 kokoro:
     python_bin: __BASE_DIR__/runtime/venv/tts-gateway/bin/python
@@ -26,6 +31,20 @@ piper:
 voice_map:
     default_zh:
         lang: zh
+        melo:
+            speaker: ZH
+            lang_code: ZH
+        kokoro:
+            voice: zf_xiaobei
+            lang_code: z
+        piper:
+            model: __BASE_DIR__/models/piper/zh_CN-huayan-medium.onnx
+            config: __BASE_DIR__/models/piper/zh_CN-huayan-medium.onnx.json
+    zh_mix_en:
+        lang: zh
+        melo:
+            speaker: ZH
+            lang_code: ZH
         kokoro:
             voice: zf_xiaobei
             lang_code: z
@@ -34,6 +53,9 @@ voice_map:
             config: __BASE_DIR__/models/piper/zh_CN-huayan-medium.onnx.json
     default_en:
         lang: en
+        melo:
+            speaker: EN-Default
+            lang_code: EN
         kokoro:
             voice: af_heart
             lang_code: a

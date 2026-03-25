@@ -31,13 +31,19 @@
 
 这说明当前仓库不是走 Qwen OAuth，而是走 DashScope API key 模式。
 
+虽然 provider id 仍然叫 `qwen`，但当前清单已经不只包含千问，还包含同一百炼兼容接口下的第三方模型，例如：
+
+- `glm-5`
+- `tongyi-xiaomi-analysis-pro`
+- `tongyi-xiaomi-analysis-flash`
+
 ### `agents.defaults.model.primary`
 
 这决定默认主模型。
 
 当前是：
 
-- `qwen/qwen-max`
+- `qwen/qwen3.5-plus`
 
 ### `agents.defaults.workspace`
 
@@ -149,9 +155,26 @@ OpenClaw 官方文档里有 `qwen-portal-auth` 插件和 OAuth 流程。
 ## 6. 你当前项目里和 Qwen 相关的最佳实践
 
 - 用 `.env.local` 保存 key，不把 key 写死进仓库
-- 使用 `qwen-max` 作为默认模型，降低“弱模型钻提示词空子”的概率
+- 使用 `qwen3.5-plus` 作为默认模型，兼顾稳定性与成本
 - 保留多个白名单模型，便于切换验证
 - 使用 repo-local config，不污染用户全局 OpenClaw 配置
+
+## 6.1 当前仓库的推荐模型分层
+
+- 低成本简单对话：`qwen/qwen3.5-flash`
+- 平衡档默认：`qwen/qwen3.5-plus`
+- 高成本复杂推理：`qwen/qwen3-max-2026-01-23`
+- 结构化中文对话分析：`qwen/tongyi-xiaomi-analysis-pro`
+- 第三方混合推理：`qwen/glm-5`
+
+这套分层是工程策略，不是 OpenClaw 当前内建的自动路由器。
+
+当前仓库里没有证据表明 `.openclaw-dev/config.json` 支持“按任务复杂度自动切换主模型”。
+所以现阶段最实际的方案是：
+
+1. 把默认主模型设为平衡档
+2. 保留低成本和高性能模型在白名单里
+3. 在复杂任务前手动切换当前默认模型，或在会话里显式切换模型
 
 ## 7. 推荐的验证顺序
 

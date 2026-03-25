@@ -147,9 +147,36 @@ make gui-tui
 
 - provider id：`qwen`
 - base URL：`https://dashscope.aliyuncs.com/compatible-mode/v1`
-- 默认模型：`qwen/qwen-max`
-- 白名单模型：`qwen-plus`、`qwen-max`、`qwen-turbo`、`qwen3-coder-plus`
+- 默认模型：`qwen/qwen3.5-plus`
+- 白名单模型：`qwen-plus`、`qwen3.5-plus`、`qwen3.5-plus-2026-02-15`、`qwen-max`、`qwen3-max-2026-01-23`、`qwen-turbo`、`qwen3.5-flash`、`qwen3.5-122b-a10b`、`qwen3.5-35b-a3b`、`qwen3.5-27b`、`qwen3-coder-plus`、`glm-5`、`tongyi-xiaomi-analysis-pro`、`tongyi-xiaomi-analysis-flash`
 - API Key 来源：环境变量引用 `DASHSCOPE_API_KEY`
+
+推荐使用策略：
+
+- 日常简单对话：`qwen/qwen3.5-flash`
+- 默认平衡档：`qwen/qwen3.5-plus`
+- 复杂推理与高难任务：`qwen/qwen3-max-2026-01-23`
+- 中文对话分析类任务：`qwen/tongyi-xiaomi-analysis-pro`
+
+当前仓库没有原生“按问题复杂度自动路由到不同模型”的配置字段。现阶段更稳妥的做法是：
+
+- 保持一个平衡档默认主模型
+- 遇到高复杂度任务时手动切换模型
+- 用以下命令快速切换默认主模型：
+
+```sh
+make model-cheap
+make model-balanced
+make model-reasoning
+make model-analysis
+```
+
+切换后重启 gateway 使新默认配置生效：
+
+```sh
+make gui-stop
+make gui-gateway
+```
 
 推荐在仓库根目录创建 `.env.local`：
 
@@ -174,6 +201,64 @@ make gui-dashboard
 - 旧状态目录如果曾产生异常历史，不要继续复用，优先保留 `state-live`
 - `make gui-gateway` 是前台常驻进程；若需要在另一个终端停止它，优先用 `make gui-stop`
 - 如果看到 “another gateway instance is already listening”，先执行 `make gui-stop`；这会同时处理普通进程和 `launchd` 监管实例
+- 如果 OpenClaw 升级后再次出现 `edit failed: Missing required parameter: oldText/newText` 之类报错，先执行 `make gui-runtime-patch`，然后重启 `make gui-gateway`
+
+### 4.6 阶段 F：Gmail 整理与 Hook 自动化
+
+仓库已提供 repo-local Gmail 组织入口：
+
+- `skills/gmail-organizer/`
+- `python3 skills/gmail-organizer/scripts/invoke_gmail.py ...`
+- `make gmail-config`
+- `make gmail-check`
+- `make gmail-run`
+
+初始化 Gmail 配置骨架：
+
+```sh
+make gmail-config
+```
+
+检查宿主依赖：
+
+```sh
+make gmail-check
+```
+
+即时读取 Gmail：
+
+```sh
+python3 skills/gmail-organizer/scripts/invoke_gmail.py status
+python3 skills/gmail-organizer/scripts/invoke_gmail.py latest --limit 5 --unread-only
+```
+
+当前实现要求的宿主依赖：
+
+- `gog`
+- `gcloud`
+
+填好 `.env.local` 之后，运行 Gmail watcher：
+
+```sh
+make gmail-run
+```
+
+默认 Gmail hook 策略：
+
+- 低成本模型：`qwen/qwen3.5-flash`
+- `thinking: off`
+- `deliver: true`
+- `channel: last`
+
+这意味着 Gmail 事件会优先用便宜模型做常规 inbox triage，并把结果发回最近活动的聊天通道。
+
+说明：
+
+- 当前机器已经安装 `gog` / `gcloud`
+- 如果 Homebrew 没把 `gcloud` 链到 `/opt/homebrew/bin`，`make gmail-run` 会自动回退到 `/opt/homebrew/share/google-cloud-sdk/bin/gcloud`
+- `gcloud auth login` 只解决 GCP 登录，不会自动给 `gog` Gmail API 权限；`gog` 仍需要单独的 OAuth client credentials 和 `gog auth add`
+- `make gmail-config` 会为 `OPENCLAW_HOOK_TOKEN` 和 `GMAIL_PUSH_TOKEN` 自动生成本地随机值
+- Gmail Pub/Sub 的 topic / subscription 仍需你根据自己的 GCP 项目填写
 
 ---
 

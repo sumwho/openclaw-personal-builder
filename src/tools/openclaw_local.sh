@@ -35,10 +35,37 @@ load_env_local_defaults() {
 
 load_env_local_defaults
 
+load_gateway_token_from_config() {
+    [[ -n "${OPENCLAW_GATEWAY_TOKEN:-}" ]] && return 0
+    [[ -f "${config_path}" ]] || return 0
+
+    local token
+    token="$(
+        python3 - "${config_path}" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh:
+        config = json.load(fh)
+    token = config.get("gateway", {}).get("auth", {}).get("token", "")
+    if isinstance(token, str):
+        print(token)
+except Exception:
+    pass
+PY
+    )"
+
+    if [[ -n "${token}" ]]; then
+        export OPENCLAW_GATEWAY_TOKEN="${token}"
+    fi
+}
+
 mkdir -p "${state_dir}" "${state_root}/logs"
 
 export OPENCLAW_STATE_DIR="${state_dir}"
 export OPENCLAW_CONFIG_PATH="${config_path}"
+load_gateway_token_from_config
 
 shim_option="--import=${repo_root}/src/tools/openclaw_network_shim.mjs"
 if [[ -n "${NODE_OPTIONS:-}" ]]; then
@@ -61,6 +88,18 @@ run_gateway() {
     fi
 
     run_openclaw "${gateway_args[@]}"
+}
+
+run_status() {
+    run_openclaw gateway health
+    echo
+    run_openclaw channels list --json
+    echo
+    run_openclaw devices list --json
+}
+
+run_logs() {
+    run_openclaw logs --plain --limit "${OPENCLAW_LOG_LIMIT:-200}"
 }
 
 list_gateway_pids() {
@@ -138,11 +177,17 @@ case "${command_name}" in
             run_openclaw dashboard
         fi
         ;;
+    status)
+        run_status
+        ;;
+    logs)
+        run_logs
+        ;;
     tui)
         run_openclaw tui --url "ws://127.0.0.1:${gateway_port}"
         ;;
     *)
-        echo "Usage: $0 {doctor|gateway|stop|dashboard|tui}" >&2
+        echo "Usage: $0 {doctor|gateway|stop|dashboard|status|logs|tui}" >&2
         exit 1
         ;;
 esac

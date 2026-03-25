@@ -3,7 +3,9 @@
 ## Current Status
 
 - Chinese Kokoro synthesis works.
-- English synthesis works through Piper.
+- MeloTTS is integrated as the preferred quality path for Chinese requests and is now verified end to end through the local gateway.
+- English synthesis works through Melo and Piper.
+- English Melo now works for common words and letter-spelled OOV tokens without external NLTK downloads. Local NLTK data remains optional for better pronunciation on harder English words.
 - English requests that prefer Kokoro currently fall back to Piper.
 - OpenClaw can discover `local-tts` from `.openclaw-dev/workspace/skills/local-tts/` after the local config seed step runs.
 
@@ -38,6 +40,8 @@ Key paths:
 - A supported Python interpreter: `3.11`, `3.12`, or `3.13`
 - `ffmpeg`, preferably exposed at `<base_dir>/bin/ffmpeg`
 - Local TTS venv already created under `runtime/venv/tts-gateway`
+- Local Melo venv already created under `runtime/venv/melo`
+- Optional: local NLTK data under `runtime/cache/nltk_data` if you want richer English OOV pronunciation than the built-in letter-spelling fallback
 - If you deploy outside the default path, export `OPENCLAW_TTS_BASE_DIR=/your/base/dir`
 
 Default deployment:
@@ -122,7 +126,7 @@ Expected behaviors:
 
 - `/health` returns `status=ok`
 - `/voices` returns `default_zh` and `default_en`
-- Both voices list `kokoro` and `piper`
+- Both voices should list `melo`, `kokoro`, and `piper` after a successful Melo install
 
 ## OpenClaw Skill Checks
 
@@ -149,6 +153,53 @@ Expected behaviors:
 - the resolved `SKILL.md` path is `.openclaw-dev/workspace/skills/local-tts/SKILL.md`
 
 ## Synthesis Checks
+
+Chinese Melo:
+
+```sh
+curl -s -X POST http://127.0.0.1:28641/v1/audio/speech \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "good afternoon， 今天下雨了， 天气有些阴。",
+    "voice": "default_zh",
+    "lang": "zh",
+    "format": "wav",
+    "speed": 1.0,
+    "engine": "melo"
+  }'
+```
+
+Code-switching Chinese `(mix EN)`:
+
+```sh
+curl -s -X POST http://127.0.0.1:28641/v1/audio/speech \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "今天我们讨论一下 AI system architecture",
+    "voice": "zh_mix_en",
+    "lang": "zh",
+    "format": "wav",
+    "speed": 1.0,
+    "engine": "melo"
+  }'
+```
+
+Expected behavior: this `zh_mix_en` voice keeps the sentence on the Melo Chinese `(mix EN)` path as one synthesis chunk unless normal text chunking is needed for length control.
+
+English Melo:
+
+```sh
+curl -s -X POST http://127.0.0.1:28641/v1/audio/speech \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "Good afternoon. OpenAI summary.",
+    "voice": "default_en",
+    "lang": "en",
+    "format": "wav",
+    "speed": 1.0,
+    "engine": "melo"
+  }'
+```
 
 Chinese Kokoro:
 
@@ -240,5 +291,6 @@ This keeps:
 ## Known Gaps
 
 - English Kokoro is not fully local yet and may still fall back to Piper.
+- MeloTTS currently depends on host `mecab`; the Python package and runtime caches still stay inside the deployment base directory.
 - Background start should be upgraded to `launchd` for production reliability.
 - Host-managed dependencies are not yet fully vendored into the deployment base directory.
