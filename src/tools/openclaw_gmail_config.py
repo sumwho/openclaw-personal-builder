@@ -13,7 +13,7 @@ DEFAULT_ENV_PATH = Path(".env.local")
 DEFAULT_GMAIL_LABEL = "INBOX"
 DEFAULT_GMAIL_TOPIC = "projects/REPLACE_ME/topics/gog-gmail-watch"
 DEFAULT_GMAIL_SUBSCRIPTION = "gog-gmail-watch-push"
-DEFAULT_GMAIL_MODEL = "qwen/qwen3.5-flash"
+DEFAULT_GMAIL_MODEL = "dashscope/qwen3.5-flash"
 DEFAULT_HOOK_TOKEN_REF = "${OPENCLAW_HOOK_TOKEN}"
 DEFAULT_PUSH_TOKEN_REF = "${GMAIL_PUSH_TOKEN}"
 

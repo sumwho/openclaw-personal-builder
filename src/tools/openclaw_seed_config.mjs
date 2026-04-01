@@ -44,7 +44,7 @@ const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "";
 const managedCommunityPluginPaths = [
     path.join(homeDir, ".openclaw", "extensions", "openclaw-weixin"),
 ];
-const managedAllowedPlugins = ["qwen-portal-auth", "telegram"];
+const managedAllowedPlugins = ["telegram"];
 const managedProviderModels = [
     { id: "qwen-plus", name: "Qwen Plus" },
     { id: "qwen3.5-plus", name: "Qwen3.5 Plus" },
@@ -343,6 +343,15 @@ const nextConfig = {
             dmPolicy: config.channels?.telegram?.dmPolicy ?? "pairing",
             groupPolicy: config.channels?.telegram?.groupPolicy ?? "disabled",
             streaming: config.channels?.telegram?.streaming ?? "partial",
+            timeoutSeconds: config.channels?.telegram?.timeoutSeconds ?? 120,
+            network: {
+                ...(config.channels?.telegram?.network ?? {}),
+                autoSelectFamily:
+                    config.channels?.telegram?.network?.autoSelectFamily ?? false,
+                dnsResultOrder:
+                    config.channels?.telegram?.network?.dnsResultOrder ??
+                    "ipv4first",
+            },
         },
     },
     tools: {
@@ -358,10 +367,6 @@ const nextConfig = {
         },
         entries: {
             ...(config.plugins?.entries ?? {}),
-            "qwen-portal-auth": {
-                ...(config.plugins?.entries?.["qwen-portal-auth"] ?? {}),
-                enabled: true,
-            },
             telegram: {
                 ...(config.plugins?.entries?.telegram ?? {}),
                 enabled: true,
